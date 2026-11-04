@@ -59,16 +59,15 @@ export default function App() {
     items.forEach((i) => {
       q[i.id] = isReq(i) ? i.qty : 0;
     });
-    const reqCost = items.filter(isReq).reduce((s, i) => s + i.price * i.qty, 0);
+    const reqCost = items.filter(isReq).reduce((s, i) => s + i.price * q[i.id], 0);
     let left = B - reqCost;
     if (fill) {
-      // starred and "need now" items absorb the leftover budget; star gets about double
-      const w = (i) => (i.star ? 4 : 2);
-      const valid = items.filter((i) => isReq(i) && i.price > 0);
+      // only starred items get extra units; everything else stays at its minimum (1)
+      const valid = items.filter((i) => i.star && i.price > 0);
       while (true) {
         const c = valid
           .filter((i) => i.price <= left + 1e-9)
-          .sort((a, b) => q[a.id] / w(a) - q[b.id] / w(b) || a.price - b.price)[0];
+          .sort((a, b) => q[a.id] - q[b.id] || a.price - b.price)[0];
         if (!c) break;
         q[c.id]++;
         left -= c.price;
@@ -80,8 +79,8 @@ export default function App() {
       reqCost,
       left,
       total: B - left,
-      need: items.filter((i) => i.need).map(withQ),
-      star: items.filter((i) => i.star && !i.need).map(withQ),
+      need: items.filter((i) => i.need && !i.star).map(withQ),
+      star: items.filter((i) => i.star).map(withQ),
       extra: items.filter((i) => !isReq(i) && q[i.id] > 0).map(withQ),
     };
   }, [items, budget, fill]);
@@ -120,7 +119,7 @@ export default function App() {
               </div>
               <label className="switch">
                 <input type="checkbox" checked={fill} onChange={(e) => setFill(e.target.checked)} />
-                <span>למלא את שאר התקציב בפריטים מסומנים</span>
+                <span>למלא את שאר התקציב בפריטי כוכב</span>
               </label>
             </section>
 
@@ -222,7 +221,7 @@ export default function App() {
               ))}
             </section>
             <div className="mut small">
-              🛒 = צריך עכשיו, ★ = חשוב תמיד. הכמות היא המינימום לפריט מסומן. את שאר התקציב ממלאים פריטים מסומנים בלבד: פריט עם כוכב מקבל הכי הרבה יחידות, ופריט עם 🛒 בערך חצי ממנו.
+              🛒 = צריך עכשיו, ★ = חשוב. הכמות שליד כל פריט היא כמה יחידות לקנות ממנו (ברירת מחדל 1). פריטי כוכב מקבלים בנוסף את שאר התקציב.
             </div>
           </>
         )}
