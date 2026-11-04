@@ -1,254 +1,95 @@
-import { useState, useEffect, useMemo } from "react";
-
-const KEY = "bldg-supplies-v1";
-const load = () => {
-  try {
-    const s = localStorage.getItem(KEY);
-    return s ? JSON.parse(s) : null;
-  } catch (e) {
-    return null;
-  }
-};
-const save = (d) => {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(d));
-  } catch (e) {}
-};
-
-const sample = [
-  { id: 1, name: "נייר טואלט", price: 26, star: true, need: false, qty: 1 },
-  { id: 2, name: "קליר דיש", price: 6.2, star: false, need: false, qty: 1 },
-  { id: 3, name: "שקיות אשפה", price: 13, star: false, need: false, qty: 1 },
-  { id: 4, name: "מטליות", price: 10, star: false, need: false, qty: 1 },
-  { id: 5, name: "אקונומיקה", price: 14, star: false, need: false, qty: 1 },
-  { id: 6, name: "קליר ספריי", price: 8, star: false, need: false, qty: 1 },
-  { id: 7, name: "סל אשפה", price: 9, star: false, need: false, qty: 1 },
-  { id: 8, name: "סקוצ'ים", price: 6.2, star: false, need: false, qty: 1 },
-];
-
-const fmt = (n) => "₪" + (Math.round(n * 100) / 100).toLocaleString("he-IL");
+import { useState, useEffect } from "react";
+import NavBar from "./components/NavBar";
+import PlanTab from "./tabs/PlanTab";
+import ItemsTab from "./tabs/ItemsTab";
+import OrdersTab from "./tabs/OrdersTab";
+import ReportTab from "./tabs/ReportTab";
+import useBudgetPlan from "./hooks/useBudgetPlan";
+import { SAMPLE_ITEMS, TABS } from "./constants";
+import { load, save, todayISO } from "./utils";
+import "./additions.css";
 
 export default function App() {
-  const init = load() || {};
+  const [init] = useState(() => load() || {});
   const [tab, setTab] = useState("plan");
   const [budget, setBudget] = useState(init.budget ?? "");
-  const [items, setItems] = useState(init.items ?? sample);
+  const [items, setItems] = useState(init.items ?? SAMPLE_ITEMS);
   const [fill, setFill] = useState(init.fill ?? true);
-  const [nm, setNm] = useState("");
-  const [pr, setPr] = useState("");
+  const [orders, setOrders] = useState(init.orders ?? []);
+  const [openOrderId, setOpenOrderId] = useState(null);
 
   useEffect(() => {
-    save({ budget, items, fill });
-  }, [budget, items, fill]);
+    save({ budget, items, fill, orders });
+  }, [budget, items, fill, orders]);
 
-  const upd = (id, ch) => setItems(items.map((i) => (i.id === id ? { ...i, ...ch } : i)));
-  const del = (id) => setItems(items.filter((i) => i.id !== id));
+  const plan = useBudgetPlan(items, budget, fill);
 
-  const add = () => {
-    const p = parseFloat(pr);
-    if (!nm.trim() || isNaN(p) || p < 0) return;
-    setItems([...items, { id: Date.now(), name: nm.trim(), price: p, star: false, need: false, qty: 1 }]);
-    setNm("");
-    setPr("");
+  // ---------- פריטים ----------
+  const updateItem = (id, ch) => setItems((list) => list.map((i) => (i.id === id ? { ...i, ...ch } : i)));
+  const deleteItem = (id) => setItems((list) => list.filter((i) => i.id !== id));
+  const addItem = (name, price) =>
+    setItems((list) => [...list, { id: Date.now(), name, price, star: false, need: false, qty: 1 }]);
+
+  // ---------- הזמנות ----------
+  const finishOrder = () => {
+    const lines = [...plan.need, ...plan.star, ...plan.extra]
+      .filter((i) => i.qty > 0)
+      .map((i) => ({ itemId: i.id, name: i.name, price: i.price, qty: i.qty }));
+    if (lines.length === 0) return;
+
+    const order = {
+      id: Date.now(),
+      date: todayISO(),
+      budget: plan.B,
+      total: lines.reduce((s, l) => s + l.qty * l.price, 0),
+      lines,
+      allocations: [],
+    };
+    setOrders((list) => [order, ...list]);
+    setItems((list) => list.map((i) => ({ ...i, need: false }))); // מנקה את "צריך עכשיו" להזמנה הבאה
+    setOpenOrderId(order.id);
+    setTab("orders");
   };
 
-  const plan = useMemo(() => {
-    const B = parseFloat(budget) || 0;
-    const isReq = (i) => i.star || i.need;
-    const q = {};
-    items.forEach((i) => {
-      q[i.id] = isReq(i) ? i.qty : 0;
-    });
-    const reqCost = items.filter(isReq).reduce((s, i) => s + i.price * q[i.id], 0);
-    let left = B - reqCost;
-    if (fill) {
-      // only starred items get extra units; everything else stays at its minimum (1)
-      const valid = items.filter((i) => i.star && i.price > 0);
-      while (true) {
-        const c = valid
-          .filter((i) => i.price <= left + 1e-9)
-          .sort((a, b) => q[a.id] - q[b.id] || a.price - b.price)[0];
-        if (!c) break;
-        q[c.id]++;
-        left -= c.price;
-      }
-    }
-    const withQ = (i) => ({ ...i, qty: q[i.id] });
-    return {
-      B,
-      reqCost,
-      left,
-      total: B - left,
-      need: items.filter((i) => i.need && !i.star).map(withQ),
-      star: items.filter((i) => i.star).map(withQ),
-      extra: items.filter((i) => !isReq(i) && q[i.id] > 0).map(withQ),
-    };
-  }, [items, budget, fill]);
+  const updateOrder = (id, ch) => setOrders((list) => list.map((o) => (o.id === id ? { ...o, ...ch } : o)));
+  const deleteOrder = (id) => setOrders((list) => list.filter((o) => o.id !== id));
+
+  const changeTab = (t) => {
+    if (t === "orders") setOpenOrderId(null);
+    setTab(t);
+  };
 
   return (
     <div className="app">
-      <header>{tab === "plan" ? "🏢 תקציב הבניין" : "📦 הפריטים שלי"}</header>
+      <header>{TABS[tab].title}</header>
 
       <main>
         {tab === "plan" && (
-          <>
-            <section className="card">
-              <label>כמה תקציב יש?</label>
-              <div className="money">
-                <span>₪</span>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={budget}
-                  placeholder="300"
-                  onChange={(e) => setBudget(e.target.value)}
-                />
-              </div>
-            </section>
-
-            <section className="card">
-              <label>🛒 מה צריך עכשיו? (לחץ לבחירה)</label>
-              {items.length === 0 && <div className="empty">אין פריטים. הוסף בלשונית פריטים</div>}
-              <div className="chips">
-                {items.map((i) => (
-                  <button key={i.id} className={"chip " + (i.need ? "on" : "")} onClick={() => upd(i.id, { need: !i.need })}>
-                    {i.need ? "✓ " : ""}
-                    {i.name}
-                  </button>
-                ))}
-              </div>
-              <label className="switch">
-                <input type="checkbox" checked={fill} onChange={(e) => setFill(e.target.checked)} />
-                <span>למלא את שאר התקציב בפריטי כוכב</span>
-              </label>
-            </section>
-
-            {plan.B > 0 ? (
-              <>
-                {plan.reqCost > plan.B && (
-                  <div className="warn">
-                    הפריטים הנדרשים עולים {fmt(plan.reqCost - plan.B)} יותר מהתקציב. כדאי להגדיל תקציב או להוריד כמות.
-                  </div>
-                )}
-                <section className="card">
-                  <div className="mut">סה״כ בסל</div>
-                  <div className={"big " + (plan.left < 0 ? "bad" : "ok")}>{fmt(plan.total)}</div>
-                  <div className="mut">{plan.left >= 0 ? "נשאר: " + fmt(plan.left) : "חריגה: " + fmt(-plan.left)}</div>
-                  <div className="bar">
-                    <i style={{ width: Math.min(100, (plan.total / plan.B) * 100) + "%" }} />
-                  </div>
-                </section>
-
-                <section className="card">
-                  {plan.need.length > 0 && (
-                    <>
-                      <div className="tag first">🛒 צריך עכשיו</div>
-                      {plan.need.map((i) => (
-                        <Line key={i.id} i={i} />
-                      ))}
-                    </>
-                  )}
-                  {plan.star.length > 0 && (
-                    <>
-                      <div className={"tag " + (plan.need.length === 0 ? "first" : "")}>⭐ חובה</div>
-                      {plan.star.map((i) => (
-                        <Line key={i.id} i={i} />
-                      ))}
-                    </>
-                  )}
-                  {plan.need.length + plan.star.length === 0 && <div className="empty">לא סומנו פריטים חשובים</div>}
-                  {fill && plan.extra.length > 0 && (
-                    <>
-                      <div className="tag">מילוי התקציב</div>
-                      {plan.extra.map((i) => (
-                        <Line key={i.id} i={i} />
-                      ))}
-                    </>
-                  )}
-                </section>
-              </>
-            ) : (
-              <div className="empty">הכנס תקציב כדי לראות את הרשימה</div>
-            )}
-          </>
+          <PlanTab
+            items={items}
+            budget={budget}
+            setBudget={setBudget}
+            fill={fill}
+            setFill={setFill}
+            plan={plan}
+            onUpdateItem={updateItem}
+            onFinishOrder={finishOrder}
+          />
         )}
-
-        {tab === "items" && (
-          <>
-            <section className="card">
-              <label>הוספת פריט</label>
-              <input type="text" value={nm} onChange={(e) => setNm(e.target.value)} placeholder="שם הפריט" />
-              <div className="row gap">
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  value={pr}
-                  onChange={(e) => setPr(e.target.value)}
-                  placeholder="מחיר ₪"
-                />
-                <button className="btn" onClick={add}>
-                  הוסף +
-                </button>
-              </div>
-            </section>
-
-            <section className="card">
-              {items.length === 0 && <div className="empty">אין פריטים עדיין</div>}
-              {items.map((i) => (
-                <div className="item col" key={i.id}>
-                  <div className="top">
-                    <b className="nm">{i.name}</b>
-                    <button className="ghost" onClick={() => del(i.id)} aria-label="מחק">
-                      🗑
-                    </button>
-                  </div>
-                  <div className="bot">
-                    <span className="mut">{fmt(i.price)}</span>
-                    <span className="sp" />
-                    <button className={"tog " + (i.need ? "on" : "")} onClick={() => upd(i.id, { need: !i.need })} aria-label="צריך עכשיו">
-                      🛒
-                    </button>
-                    <button className={"tog star " + (i.star ? "on" : "")} onClick={() => upd(i.id, { star: !i.star })} aria-label="חשוב">
-                      ★
-                    </button>
-                    <div className="qty">
-                      <button onClick={() => upd(i.id, { qty: i.qty + 1 })}>+</button>
-                      <b>{i.qty}</b>
-                      <button onClick={() => upd(i.id, { qty: Math.max(1, i.qty - 1) })}>−</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </section>
-            <div className="mut small">
-              🛒 = צריך עכשיו, ★ = חשוב. הכמות שליד כל פריט היא כמה יחידות לקנות ממנו (ברירת מחדל 1). פריטי כוכב מקבלים בנוסף את שאר התקציב.
-            </div>
-          </>
+        {tab === "items" && <ItemsTab items={items} onAdd={addItem} onUpdate={updateItem} onDelete={deleteItem} />}
+        {tab === "orders" && (
+          <OrdersTab
+            orders={orders}
+            openOrderId={openOrderId}
+            setOpenOrderId={setOpenOrderId}
+            onUpdateOrder={updateOrder}
+            onDeleteOrder={deleteOrder}
+          />
         )}
+        {tab === "report" && <ReportTab orders={orders} />}
       </main>
 
-      <nav>
-        <button className={tab === "plan" ? "act" : ""} onClick={() => setTab("plan")}>
-          🛍 רשימת קניות
-        </button>
-        <button className={tab === "items" ? "act" : ""} onClick={() => setTab("items")}>
-          📦 פריטים
-        </button>
-      </nav>
-    </div>
-  );
-}
-
-function Line({ i, dim }) {
-  return (
-    <div className="item" style={dim ? { opacity: 0.55 } : null}>
-      <div className="nm">
-        <b>{i.name}</b>
-        <span>
-          {i.qty} × {fmt(i.price)}
-        </span>
-      </div>
-      <b>{fmt(i.qty * i.price)}</b>
+      <NavBar tab={tab} onChange={changeTab} />
     </div>
   );
 }

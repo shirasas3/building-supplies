@@ -1,0 +1,64 @@
+/* תוספות עיצוב למסכי ההזמנות והדוח – משתמש במחלקות הקיימות (card, chip, btn וכו') */
+
+.btn.full {
+  width: 100%;
+  margin-top: 12px;
+}
+.btn.secondary {
+  opacity: 0.85;
+}
+.btn:disabled,
+.qty button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.seg {
+  margin-bottom: 8px;
+}
+.seg .chip {
+  min-width: 64px;
+  text-align: center;
+}
+
+.field {
+  align-items: center;
+  margin: 8px 0;
+}
+
+input[type="date"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.room-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.order-row {
+  width: 100%;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+/* הדפסה: רק הדוח עצמו */
+@media print {
+  .no-print,
+  nav,
+  header {
+    display: none !important;
+  }
+  .card {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #ccc;
+  }
+}
