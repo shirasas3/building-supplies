@@ -16,11 +16,14 @@ const save = (d) => {
 };
 
 const sample = [
-  { id: 1, name: "נייר טואלט (חבילה)", price: 30, star: true, need: false, qty: 1 },
-  { id: 2, name: "סבון כלים", price: 12, star: true, need: false, qty: 1 },
-  { id: 3, name: "שקיות אשפה", price: 15, star: false, need: false, qty: 1 },
+  { id: 1, name: "נייר טואלט", price: 26, star: true, need: false, qty: 1 },
+  { id: 2, name: "קליר דיש", price: 6.2, star: false, need: false, qty: 1 },
+  { id: 3, name: "שקיות אשפה", price: 13, star: false, need: false, qty: 1 },
   { id: 4, name: "מטליות", price: 10, star: false, need: false, qty: 1 },
-  { id: 5, name: "אקונומיקה", price: 14, star: true, need: false, qty: 1 },
+  { id: 5, name: "אקונומיקה", price: 14, star: false, need: false, qty: 1 },
+  { id: 6, name: "קליר ספריי", price: 8, star: false, need: false, qty: 1 },
+  { id: 7, name: "סל אשפה", price: 9, star: false, need: false, qty: 1 },
+  { id: 8, name: "סקוצ'ים", price: 6.2, star: false, need: false, qty: 1 },
 ];
 
 const fmt = (n) => "₪" + (Math.round(n * 100) / 100).toLocaleString("he-IL");
