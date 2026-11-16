@@ -15,8 +15,9 @@ export default function useBudgetPlan(items, budget, fill, fillMode = "star") {
 
     if (fill) {
       // "star": רק פריטי כוכב מקבלים יחידות נוספות
-      // "all": גם הפריטים שסומנו "צריך עכשיו" מקבלים יחידות נוספות
-      const canFill = fillMode === "all" ? isReq : (i) => i.star;
+      // "all": גם הפריטים שסומנו "צריך עכשיו" מקבלים יחידות נוספות,
+      //        חוץ מפריטים שהוגדרה להם כמות שונה מ-1 – הם נשארים בכמות שהוגדרה
+      const canFill = fillMode === "all" ? (i) => i.star || (i.need && i.qty === 1) : (i) => i.star;
       const valid = items.filter((i) => canFill(i) && i.price > 0);
       while (true) {
         const c = valid
