@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 
 // מחשב את רשימת הקניות לפי התקציב, הפריטים הנדרשים ופריטי הכוכב
-export default function useBudgetPlan(items, budget, fill) {
+// fillMode: "star" = משלים רק מוצרי חובה (כוכב), "all" = משלים בכל המוצרים הנבחרים (כוכב + צריך עכשיו)
+export default function useBudgetPlan(items, budget, fill, fillMode = "star") {
   return useMemo(() => {
     const B = parseFloat(budget) || 0;
     const isReq = (i) => i.star || i.need;
@@ -13,8 +14,10 @@ export default function useBudgetPlan(items, budget, fill) {
     let left = B - reqCost;
 
     if (fill) {
-      // רק פריטי כוכב מקבלים יחידות נוספות; כל השאר נשארים בכמות המינימלית
-      const valid = items.filter((i) => i.star && i.price > 0);
+      // "star": רק פריטי כוכב מקבלים יחידות נוספות
+      // "all": גם הפריטים שסומנו "צריך עכשיו" מקבלים יחידות נוספות
+      const canFill = fillMode === "all" ? isReq : (i) => i.star;
+      const valid = items.filter((i) => canFill(i) && i.price > 0);
       while (true) {
         const c = valid
           .filter((i) => i.price <= left + 1e-9)
@@ -35,5 +38,5 @@ export default function useBudgetPlan(items, budget, fill) {
       star: items.filter((i) => i.star).map(withQ),
       extra: fill ? items.filter((i) => !isReq(i) && q[i.id] > 0).map(withQ) : [],
     };
-  }, [items, budget, fill]);
+  }, [items, budget, fill, fillMode]);
 }

@@ -13,7 +13,31 @@ function BudgetCard({ budget, onChange }) {
   );
 }
 
-function NeedPicker({ items, onToggle, fill, onFillChange }) {
+const FILL_MODES = [
+  { v: "star", label: "למלא תקציב במוצרי חובה" },
+  { v: "all", label: "למלא תקציב בכל המוצרים הנבחרים" },
+];
+
+function FillModeToggle({ value, onChange }) {
+  return (
+    <div className="pill" role="radiogroup" aria-label="איך למלא את התקציב">
+      {FILL_MODES.map((m) => (
+        <button
+          key={m.v}
+          type="button"
+          role="radio"
+          aria-checked={value === m.v}
+          className={value === m.v ? "on" : ""}
+          onClick={() => onChange(m.v)}
+        >
+          {m.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function NeedPicker({ items, onToggle, fill, onFillChange, fillMode, onFillModeChange }) {
   return (
     <section className="card">
       <label>🛒 מה צריך עכשיו? (לחץ לבחירה)</label>
@@ -28,8 +52,9 @@ function NeedPicker({ items, onToggle, fill, onFillChange }) {
       </div>
       <label className="switch">
         <input type="checkbox" checked={fill} onChange={(e) => onFillChange(e.target.checked)} />
-        <span>למלא את שאר התקציב בפריטי כוכב</span>
+        <span>למלא את שאר התקציב</span>
       </label>
+      {fill && <FillModeToggle value={fillMode} onChange={onFillModeChange} />}
     </section>
   );
 }
@@ -70,13 +95,20 @@ function PlanList({ plan }) {
   );
 }
 
-export default function PlanTab({ items, budget, setBudget, fill, setFill, plan, onUpdateItem, onFinishOrder }) {
+export default function PlanTab({ items, budget, setBudget, fill, setFill, fillMode, setFillMode, plan, onUpdateItem, onFinishOrder }) {
   const hasLines = plan.need.length + plan.star.length + plan.extra.length > 0;
 
   return (
     <>
       <BudgetCard budget={budget} onChange={setBudget} />
-      <NeedPicker items={items} onToggle={(i) => onUpdateItem(i.id, { need: !i.need })} fill={fill} onFillChange={setFill} />
+      <NeedPicker
+        items={items}
+        onToggle={(i) => onUpdateItem(i.id, { need: !i.need })}
+        fill={fill}
+        onFillChange={setFill}
+        fillMode={fillMode}
+        onFillModeChange={setFillMode}
+      />
 
       {plan.B > 0 ? (
         <>

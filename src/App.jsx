@@ -15,14 +15,15 @@ export default function App() {
   const [budget, setBudget] = useState(init.budget ?? "");
   const [items, setItems] = useState(init.items ?? SAMPLE_ITEMS);
   const [fill, setFill] = useState(init.fill ?? true);
+  const [fillMode, setFillMode] = useState(init.fillMode ?? "star");
   const [orders, setOrders] = useState(init.orders ?? []);
   const [openOrderId, setOpenOrderId] = useState(null);
 
   useEffect(() => {
-    save({ budget, items, fill, orders });
-  }, [budget, items, fill, orders]);
+    save({ budget, items, fill, fillMode, orders });
+  }, [budget, items, fill, fillMode, orders]);
 
-  const plan = useBudgetPlan(items, budget, fill);
+  const plan = useBudgetPlan(items, budget, fill, fillMode);
 
   // ---------- פריטים ----------
   const updateItem = (id, ch) => setItems((list) => list.map((i) => (i.id === id ? { ...i, ...ch } : i)));
@@ -71,6 +72,8 @@ export default function App() {
             setBudget={setBudget}
             fill={fill}
             setFill={setFill}
+            fillMode={fillMode}
+            setFillMode={setFillMode}
             plan={plan}
             onUpdateItem={updateItem}
             onFinishOrder={finishOrder}
